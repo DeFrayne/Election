@@ -1,0 +1,77 @@
+---
+title: "Election Prediction"
+author: "DeFrayne"
+date: "October 30, 2020"
+output: html_document
+---
+
+```{r}
+#Load librarries
+if (!require('caret')){
+  install.packages('caret')
+  require('caret')
+}
+if (!require('dplyr')){
+  install.packages('dplyr')
+  require('dplyr')
+}
+if (!require('tidyr')){
+  install.packages('tidyr')
+  require('tidyr')
+}
+if (!require('corrplot')){
+  install.packages('corrplot')
+  require('corrplot')
+}
+```
+
+```{r}
+#Set up - only run first time
+
+#Set Working Directory
+#setwd("D:/Git/Election/Data")
+
+#Read in the Time For Change model data from The Economist github account
+#Model_Data <- read.csv(url("https://raw.githubusercontent.com/TheEconomist/us-potus-model/master/data/abramowitz_data.csv"))
+
+#Save Time For Change model data locally
+#write.csv(Model_Data, "Time_For_Change_Data.csv", row.names=FALSE)
+
+```
+
+```{r}
+#Test the files to ensure we receive the same results of Abramowitz
+
+#Set Working Directory
+setwd("D:/Git/Election/Data")
+
+#Read in Time For Change Data
+Time_For_Change_Data <- read.csv("Time_For_Change_Data.csv", stringsAsFactors=FALSE)
+
+#Remove 2016 Data
+Time_For_Change_Data_No_2016 <- Time_For_Change_Data %>%
+  filter(year != "2016")
+
+#Cross-validation
+#Train_Control <- trainControl(method="LOOCV")
+Train_Control <- trainControl(method="cv", number=2)
+
+#Create the logistic regression model for 2020 prediction (2020 data not included yet)
+Time_For_Change_Model_2020 <- train(incvote ~ q2gdp + juneapp + inc1,
+                               data = Time_For_Change_Data,
+                               trControl = Train_Control,
+                               method="glm")
+
+#Create the logistic regression model for 2016 prediction
+Time_For_Change_Model_2016 <- train(incvote ~ q2gdp + juneapp + inc1,
+                               data = Time_For_Change_Data_No_2016,
+                               trControl = Train_Control,
+                               method="glm")
+```
+
+```{r}
+#Exploratory data analysis
+Time_For_Change_Correlations <- Time_For_Change_Data %>%
+  select(-wonlost, -juneapp2, -filter_., -inc)
+corrplot(cor(Time_For_Change_Correlations), tl.cex = 0.5)
+```
