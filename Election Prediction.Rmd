@@ -293,7 +293,7 @@ Train_Control <- trainControl(method="cv", number=10)
 cl <- makeCluster(detectCores()*0.5)
 registerDoParallel(cl)
 
-#Create the logistic regression model for 2016 prediction; notice that juneapp does not correlate, so this will provide
+#Create the regression model for 2016 prediction; notice that juneapp does not correlate, so this will provide
 #a good excuse for using polling for a prior and removing this variable from our state-based model later
 State_Model_No_2016 <- train(incvote ~ q2gdp + juneapp + inc1,
                                data = State_Data_No_2016,
