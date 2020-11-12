@@ -27,15 +27,18 @@ if (!require('readxl')){
   install.packages('readxl')
   require('readxl')
 }
-<<<<<<< HEAD
 if (!require('doParallel')){
   install.packages('doParallel')
   require('doParallel')
 }
-=======
-
->>>>>>> 571cb45d4ec5b84bbd0dd8da421179da5923dab6
-
+if (!require('rstan')){
+  install.packages('rstan')
+  require('rstan')
+}
+if (!require('bayesplot')){
+  install.packages('bayesplot')
+  require('bayesplot')
+}
 
 ```
 
@@ -43,19 +46,19 @@ if (!require('doParallel')){
 #Set up - only run first time
 
 #Set Working Directory
-setwd("D:/Git/Election/Data")
+#setwd("D:/Git/Election/Data")
 
-#Read in the Time For Change model data from The Economist github account
+#Download all data from sources
 #Popular_Data <- read.csv(url("https://raw.githubusercontent.com/TheEconomist/us-potus-model/master/data/abramowitz_data.csv"))
 #State_Data <- read.csv(url("https://raw.githubusercontent.com/TheEconomist/us-potus-model/master/data/potus_results_76_16.csv"))
 #Polls_2008 <- read.csv(url("https://raw.githubusercontent.com/TheEconomist/us-potus-model/master/data/all_polls_2008.csv"))
-#polls_2012 <- read.csv(url("https://raw.githubusercontent.com/TheEconomist/us-potus-model/master/data/all_polls_2012.csv"))
+#Polls_2012 <- read.csv(url("https://raw.githubusercontent.com/TheEconomist/us-potus-model/master/data/all_polls_2012.csv"))
 #Polls_2016 <- read.csv(url("https://raw.githubusercontent.com/TheEconomist/us-potus-model/e7a027bfbb5b3f177e159db3ab0a82d2d6ad379e/data/all_polls.csv"))
 #Polls_2020 <- read_csv(url("https://projects.fivethirtyeight.com/polls-page/president_polls.csv"))
 
-#Save Time For Change model data locally
+#Save All Data Locally
 #write.csv(Popular_Data, "Time_For_Change_Data.csv", row.names=FALSE)
-#write.csv(State_Data, "State_Data", row.names=FALSE)
+#write.csv(State_Data, "State_Data.csv", row.names=FALSE)
 #write.csv(Polls_2008, "Polls_2008.csv", row.names=FALSE)
 #write.csv(Polls_2012, "Polls_2012.csv", row.names=FALSE)
 #write.csv(Polls_2016, "Polls_2016.csv", row.names=FALSE)
@@ -66,7 +69,7 @@ setwd("D:/Git/Election/Data")
 #Lizzy's Experiments
 #Add a read-in from the direct data source in the above section
 #setwd("D:/Git/Election/Data")
-
+#Other_Data <- read_excel("/Users/lizzy/Desktop/Project/Election-master/Data/WIID_06MAY2020.xlsx")
 Other_Data <- read_excel("WIID_06MAY2020.xlsx")
 
 # Possible Variables to add to model
@@ -175,69 +178,20 @@ summary(Full_Model_6)
 #Test the files to ensure we receive the same results of Abramowitz
 
 #Set Working Directory
-#setwd("D:/Git/Election/Data")
+setwd("D:/Git/Election/Data")
 
 #Read in Time For Change Data
 Time_For_Change_Data <- read.csv("Time_For_Change_Data.csv", stringsAsFactors=FALSE)
-Other_Data <- read_excel("/Users/lizzy/Desktop/Project/Election-master/Data/WIID_06MAY2020.xlsx")
-
-
-# Possible Variables to add to model
-Unemp            <- c(3.7, 3.0, 3.9, 6.1, 5.1, 3.4, 5.6, 7.7, 7.5, 7.4, 5.4, 7.3, 5.2, 3.9, 5.5, 6.5, 7.8, 4.9)
-Turnout          <- c(51.1, 61.6, 59.3, 62.8, 61.4, 60.7, 55.1, 53.6, 52.8, 53.3, 50.3, 55.2, 49.0, 50.5, 55.7, 57.1,                        53.8, 54.8)
-Petitions        <- c(68265, 94086, 137701, 127543, 113218, 103085, 121883, 199152, 192230, 286440, 237752, 342238,                          1277403, 460916, 662796, 525786, 899162, 972151)
-Denied           <- c(2887, 2163, 3935, 2277, 2309, 1962, 1837, 2799, 4370, 3373, 4304, 19293, 229842, 399670, 103339,                       121283, 65874, 86033)
-Prop_Denied      <- Denied/Petitions
-Pop_Growth_Rate  <- c(1.74, 1.49, 1.76, 1.60, 1.27, 0.93, 0.89, 0.92, 94, 0.94, 0.95, 0.96, 1.20, 1.14, 0.88, 0.96,                          0.79, 0.67)
-
-
-# Import dataset for gini measure 
-Other_Data_US <- Other_Data %>%
-  filter(country == "United States") %>%
-  filter(source == "National statistical authority") %>%
-  select(year, gini_reported, ratio_top20bottom20, bottom40, top5) %>%
-  filter(top5 != "NA") %>%
-  filter(year == 1948|
-         year == 1952|
-         year == 1956|
-         year == 1960|
-         year == 1964|
-         year == 1968|
-         year == 1972|
-         year == 1976|
-         year == 1980|
-         year == 1984|
-         year == 1988|
-         year == 1992|
-         year == 1996|
-         year == 2000|
-         year == 2004|
-         year == 2008|
-         year == 2012|
-         year == 2016) %>%
-  group_by(year) %>%
-  summarise(gini = mean(gini_reported), Ratio = mean(ratio_top20bottom20), 
-            Lower40 = mean(bottom40), Upper5 = mean(top5))
-
-# Add possible variables to Time_For_Change Dataset
-Other_Data_US         <- as.data.frame(Other_Data_US)
-Time_For_Change_Data  <- data.frame(Time_For_Change_Data, Unemp, Turnout, 
-                              Petitions, Denied, Prop_Denied, Pop_Growth_Rate)
-Time_For_Change_Data  <- merge(Time_For_Change_Data, Other_Data_US)
-
 
 #Remove 2016 Data
 Time_For_Change_Data_No_2016 <- Time_For_Change_Data %>%
   filter(year != "2016") %>%
-  select(-label, -filter_.)
+  select(-label, -filter)
 
-<<<<<<< HEAD
 #Only 2016 data
-=======
->>>>>>> 571cb45d4ec5b84bbd0dd8da421179da5923dab6
 Time_For_Change_Data_Only_2016 <- Time_For_Change_Data %>%
   filter(year == "2016") %>%
-  select(-label, -filter_.)
+  select(-label, -filter)
 
 
 #Cross-validation
@@ -249,28 +203,34 @@ Tune_Grid <- expand.grid('alpha'=c(.5, 1),'lambda' = seq(0.0001, .01, length.out
 cl <- makeCluster(detectCores()*0.5)
 registerDoParallel(cl)
 
-#Create the logistic regression model for 2016 prediction
-Time_For_Change_Model_2016 <- train(incvote ~ q2gdp + juneapp + inc1 + Prop_Denied,
+
+#Create the regression model for 2016 prediction
+Time_For_Change_Model_2016 <- train(incvote ~ q2gdp + juneapp + inc1,
                                data = Time_For_Change_Data_No_2016,
                                trControl = Train_Control,
-<<<<<<< HEAD
-                               tuneGrid = Tune_Grid,
-                               method="glmnet")
+                               #tuneGrid = Tune_Grid, for glmnet
+                               method="glm")
 
-#Create the logistic regression model for 2020 prediction (2020 data not included yet)
+#Create the regression model for 2020 prediction (2020 data not included yet)
 Time_For_Change_Model_2020 <- train(incvote ~ q2gdp + juneapp + inc1,
                                data = Time_For_Change_Data,
                                trControl = Train_Control,
-                               tuneGrid = Tune_Grid,
-                               method="glmnet")
+                               #tuneGrid = Tune_Grid, for glmnet
+                               method="glm")
+
+#Check only 1976 to 2016 (leave this here - notice that none of the variables are significant when we check 1976
+#to 2016); I think that's a good talking point re: shifting demographics
+TFC_Start_1976 <- Time_For_Change_Data %>%
+  filter(year >= "1976")
+TFC_Start_1976_Model <- train(incvote ~ q2gdp + juneapp + inc1,
+                               data = TFC_Start_1976,
+                               trControl = Train_Control,
+                               #tuneGrid = Tune_Grid, for glmnet
+                               method="glm")
 
 #End cluster and resume sequential processing
 stopCluster(cl)
 registerDoSEQ()
-
-=======
-                               method="glm")
->>>>>>> 571cb45d4ec5b84bbd0dd8da421179da5923dab6
 
 #Show summary statistics for logistic regression model for 2016 prediction 
 summary(Time_For_Change_Model_2016)
@@ -278,67 +238,6 @@ summary(Time_For_Change_Model_2016)
 
 #check accuracy of model 
 predict(Time_For_Change_Model_2016, newdata=Time_For_Change_Data_Only_2016)
-
-<<<<<<< HEAD
-=======
-###################################################################################
-# This whole section is just me playing with possible combinations, please ignore #
-###################################################################################
-# Create a model with all possible variables 
-Full_Model <- train(incvote ~  q2gdp + juneapp + inc1 + Unemp + Turnout + Petitions + Denied + Prop_Denied + Pop_Growth_Rate + gini + Ratio + Lower40 + Upper5, 
-                              data = Time_For_Change_Data_No_2016,
-                               trControl = Train_Control,
-                               method="glm")
-
-summary(Full_Model)
-
-# Full model minus turnout and ratio and Petitions and denied
-Full_Model_1 <- train(incvote ~  q2gdp + juneapp + inc1 + Unemp + Prop_Denied + Pop_Growth_Rate + gini + Lower40 + Upper5, 
-                              data = Time_For_Change_Data_No_2016,
-                               trControl = Train_Control,
-                               method="glm")
-summary(Full_Model_1)
-
-
-# Full model minus turnout and ratio and Petitions and denied and unemp
-Full_Model_2 <- train(incvote ~  q2gdp + juneapp + inc1  + Prop_Denied + Pop_Growth_Rate + gini + Lower40 + Upper5, 
-                              data = Time_For_Change_Data_No_2016,
-                               trControl = Train_Control,
-                               method="glm")
-summary(Full_Model_2)
-
-
-# Full model minus turnout and ratio and Petitions and denied and unemp and Population Growth Rate
-Full_Model_3 <- train(incvote ~  q2gdp + juneapp + inc1  + Prop_Denied +  gini + Lower40 + Upper5, 
-                              data = Time_For_Change_Data_No_2016,
-                               trControl = Train_Control,
-                               method="glm")
-summary(Full_Model_3)
-
-
-# Full model minus turnout and ratio and Petitions and denied and unemp and Population Growth Rate and Lower40
-Full_Model_4 <- train(incvote ~  q2gdp + juneapp + inc1  + Prop_Denied +  gini  + Upper5, 
-                              data = Time_For_Change_Data_No_2016,
-                               trControl = Train_Control,
-                               method="glm")
-summary(Full_Model_4)
-
-
-# Full model minus turnout and ratio and Petitions and denied and unemp and Population Growth Rate and Lower40 and gini
-Full_Model_5 <- train(incvote ~  q2gdp + juneapp + inc1  + Prop_Denied   + Upper5, 
-                              data = Time_For_Change_Data_No_2016,
-                               trControl = Train_Control,
-                               method="glm")
-summary(Full_Model_5)
-
-# Full model minus turnout and ratio and Petitions and denied and unemp and Population Growth Rate and Lower40 and giniand upper5 plus interaction terms
-Full_Model_6 <- train(incvote ~  (q2gdp + juneapp + inc1  + Prop_Denied)^2, 
-                              data = Time_For_Change_Data_No_2016,
-                               trControl = Train_Control,
-                               method="glm")
-summary(Full_Model_6)
->>>>>>> 571cb45d4ec5b84bbd0dd8da421179da5923dab6
-
 ```
 
 
@@ -355,6 +254,60 @@ plot(Time_For_Change_Data$incvote,predict(Time_For_Change_Model_2020))
 ```
 
 ```{r}
+#Setup for the state-based model
+setwd("D:/Git/Election/Data")
+State_Data <- read.csv("State_Data.csv", stringsAsFactors = FALSE)
+Time_For_Change_Data <- read.csv("Time_For_Change_Data.csv", stringsAsFactors=FALSE)
+
+#Add in which party is incumbent to calculate voter shares for the incumbent candidate
+year <- seq(1976, 2020, by=4)
+incumbent_party <- c("R", "D", "R", "R", "R", "D", "D", "R", "R", "D", "D", "R")
+incumbent_data <- data.frame(year, incumbent_party)
+
+#Merge national statistics and incumbent party in to State_Data
+State_Data <- State_Data %>%
+  left_join(Time_For_Change_Data %>% select(q2gdp, juneapp, inc1, year),
+            by="year")
+
+State_Data <- State_Data %>%
+  left_join(incumbent_data, by="year")
+
+#Recalculate voting proportion based on incumbency rather than party
+State_Data <- State_Data %>%
+  mutate(incvote = ifelse(incumbent_party == "D",
+                         dem/(dem+rep),
+                         rep/(dem+rep)))
+
+#Remove 2016 Data
+State_Data_No_2016 <- State_Data %>%
+  filter(year != "2016")
+
+#Only 2016 data
+State_Data_2016 <- State_Data %>%
+  filter(year == "2016")
+
+
+Train_Control <- trainControl(method="cv", number=10)
+
+#Initiate Parallel Processing
+cl <- makeCluster(detectCores()*0.5)
+registerDoParallel(cl)
+
+#Create the logistic regression model for 2016 prediction; notice that juneapp does not correlate, so this will provide
+#a good excuse for using polling for a prior and removing this variable from our state-based model later
+State_Model_No_2016 <- train(incvote ~ q2gdp + juneapp + inc1,
+                               data = State_Data_No_2016,
+                               trControl = Train_Control,
+                               #tuneGrid = Tune_Grid, for glmnet
+                               method="glm")
+
+#End cluster and resume sequential processing
+stopCluster(cl)
+registerDoSEQ()
+
+```
+
+```{r}
 #Cleaning Polling Data
 setwd("D:/Git/Election/Data")
 
@@ -368,5 +321,236 @@ Polls_2016 <- Polls_2016 %>%
 #######################
 # Polling Exploration #
 #######################
+
+```
+
+```{r}
+#Rstan implimentation of the Time_For_Change Model
+
+#Set Working Directory
+setwd("D:/Git/Election/Data")
+
+#Read in Time For Change Data
+Time_For_Change_Data <- read.csv("Time_For_Change_Data.csv", stringsAsFactors=FALSE)
+
+#Enable parallel processing in Stan
+options(mc.cores = parallel::detectCores())
+
+#Remove 2016 Data
+Time_For_Change_Data_No_2016 <- Time_For_Change_Data %>%
+  filter(year != "2016") %>%
+  select(-label, -filter_.)
+
+#Only 2016 data
+Time_For_Change_Data_Only_2016 <- Time_For_Change_Data %>%
+  filter(year == "2016") %>%
+  select(-label, -filter_.)
+
+#Reconfigure the model in Stan
+y_incvote <- Time_For_Change_Data_No_2016$incvote
+x_q2gdp <- Time_For_Change_Data_No_2016$q2gdp
+x_juneapp <- Time_For_Change_Data_No_2016$juneapp
+x_inc1 <- Time_For_Change_Data_No_2016$inc1
+N <- length(Time_For_Change_Data_No_2016$year)
+
+stan_data <- list(
+  N = N,
+  x1 = x_q2gdp,
+  x2 = x_juneapp,
+  x3 = x_inc1,
+  y = y_incvote
+)
+
+write("//Stan model for simple linear regression
+
+data {
+  int < lower = 1 > N; //Sample Size
+  vector[N] x1; //Quarter 2 GDP
+  vector[N] x2; //Gallop's June Approval Rating
+  vector[N] x3; //Incumbency Score (Dummy Variable)
+  vector[N] y; //Supervisor
+}
+
+parameters {
+  real alpha; //Intercept
+  real beta_q2gdp; //Slope
+  real beta_juneapp; //Slope
+  real beta_inc1; //Slope
+  real < lower = 0 > sigma; //Error Standard Deviation
+}
+
+model {
+  y ~ normal(alpha + x1 * beta_q2gdp + x2 * beta_juneapp + x3 * beta_inc1 , sigma); //Likelihood
+}
+
+generated quantities {
+
+} //The posterior predictive distribution",
+
+"stan_model.stan"
+)
+
+stanc("stan_model.stan")
+stan_model <- "stan_model.stan"
+
+fit <- stan(file = stan_model, data = stan_data, warmup = 1000, iter = 10000, chains = 4, cores = detectCores()*0.5, thin = 1)
+
+posterior <- extract(fit)
+```
+
+```{r}
+#RStan Experiments
+setwd("D:/Data")
+seaice <- read.csv(url("https://raw.githubusercontent.com/ourcodingclub/CC-Stan-intro/master/seaice.csv"), stringsAsFactors = FALSE)
+
+#Enable parallel processing in Stan
+options(mc.cores = parallel::detectCores())
+
+head(seaice)
+
+colnames(seaice) <- c("year", "extent_north", "extent_south")
+
+plot(extent_north ~ year, data=seaice, pch=20)
+
+linear_model_1 <- lm(extent_north ~ year, data=seaice)
+summary(linear_model_1)
+
+#Does changing year to a time series alter the model?
+seaice <- seaice %>%
+  mutate(year_number = year - (min(year)-1))
+linear_model_2 <- lm(extent_north ~ x, data=seaice)
+summary(linear_model_2)
+
+abline(linear_model_1, col="red", lw=4, lty=8)
+
+#Reconfigure the model in Stan
+x <- I(seaice$year - 1978)
+y <- seaice$extent_north
+N <- length(seaice$year)
+linear_model_3 <- lm(y ~ x)
+summary(linear_model_3)
+
+lm3_alpha <- summary(linear_model_3)$coeff[1]
+lm3_beta <- summary(linear_model_3)$coeff[2]
+lm3_sigma <- sigma(linear_model_3)
+
+stan_data <- list(
+  N = N,
+  x = x,
+  y = y
+)
+
+write("//Stan model for simple linear regression
+
+data {
+  int < lower = 1 > N; //Sample Size
+  vector[N] x; //Predictor
+  vector[N] y; //Supervisor
+}
+
+parameters {
+  real alpha; //Intercept
+  real beta; //Slope
+  real < lower = 0 > sigma; //Error Standard Deviation
+}
+
+model {
+  alpha ~ normal(10,0.1); //Prior - these are bad priors to illustrate their power
+  beta ~ normal(1, 0.1); //Prior
+  y ~ normal(alpha + x * beta , sigma); //Likelihood
+}
+
+generated quantities {
+
+} //The posterior predictive distribution",
+
+"stan_model1.stan"
+)
+
+stanc("stan_model1.stan")
+stan_model1 <- "stan_model1.stan"
+
+fit <- stan(file = stan_model1, data = stan_data, warmup = 500, iter = 1000, chains = 4, cores = detectCores()*0.5, thin = 1)
+
+posterior <- extract(fit)
+
+plot(y ~ x, pch=20)
+for (i in 1:500) {
+ abline(posterior$alpha[i], posterior$beta[i], col = "gray", lty = 1)
+}
+abline(linear_model_3, col = "red", lty = 2, lw = 3)
+abline(mean(posterior$alpha), mean(posterior$beta), col=6, lw=2)
+
+plot(posterior$alpha, type = "l")
+plot(posterior$beta, type = "l")
+plot(posterior$sigma, type = "l")
+
+#This is what bad mixing looks like
+fit_bad <- stan(stan_model1, data = stan_data, warmup = 25, iter = 50, chains = 4, cores = 2, thin = 1)
+posterior_bad <- extract(fit_bad)
+plot(posterior_bad$alpha, type = "l")
+plot(posterior_bad$beta, type = "l")
+plot(posterior_bad$sigma, type = "l")
+
+#Individual parameter distributions
+par(mfrow = c(1,3))
+plot(density(posterior$alpha), main = "Alpha")
+abline(v = lm3_alpha, col = 4, lty = 2)
+plot(density(posterior$beta), main = "Beta")
+abline(v = lm3_beta, col = 4, lty = 2)
+plot(density(posterior$sigma), main = "Sigma")
+abline(v = lm3_sigma, col = 4, lty = 2)
+
+#Check mixing and distributions in stan
+traceplot(fit)
+stan_dens(fit)
+stan_hist(fit)
+
+#Parameter estimates, graphically
+plot(fit, show_density = FALSE, ci_level = 0.5, outer_level = 0.95, fill_color = "salmon")
+
+
+#Check this code for posterior predictive checks later
+write("// Stan model for simple linear regression
+
+data {
+ int < lower = 1 > N; // Sample size
+ vector[N] x; // Predictor
+ vector[N] y; // Outcome
+}
+
+parameters {
+ real alpha; // Intercept
+ real beta; // Slope (regression coefficients)
+ real < lower = 0 > sigma; // Error SD
+}
+
+model {
+ y ~ normal(x * beta + alpha, sigma);
+}
+
+generated quantities {
+ real y_rep[N];
+
+ for (n in 1:N) {
+ y_rep[n] = normal_rng(x[n] * beta + alpha, sigma);
+ }
+
+}",
+
+"stan_model2_GQ.stan")
+
+stan_model2_GQ <- "scripts/users/imyerssmith/CC-Stan-Part-1/stan_model2_GQ.stan"
+
+fit3 <- stan(stan_model2_GQ, data = stan_data, iter = 1000, chains = 4, cores = 2, thin = 1)
+
+y_rep <- as.matrix(fit3, pars = "y_rep")
+dim(y_rep)
+
+ppc_dens_overlay(y, y_rep[1:200, ])
+
+ppc_stat(y = y, yrep = y_rep, stat = "mean")
+
+ppc_scatter_avg(y = y, yrep = y_rep)
 
 ```
