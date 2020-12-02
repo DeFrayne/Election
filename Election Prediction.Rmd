@@ -77,13 +77,25 @@ Other_Data <- read_excel("/Users/lizzy/Desktop/Project/Election-master/Data/WIID
 #Other_Data <- read_excel("WIID_06MAY2020.xlsx")
 
 
-# Possible State Variables to add to model
-State_Unemployment <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Unemployment.csv", stringsAsFactors=FALSE)
+##########################
+# Possible new Variables #
+##########################
+Unemployment <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Data/State Data/Unemployment Data/Unemployment.csv", 
+                              stringsAsFactors=FALSE)
+Unemployment_2020 <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Data/State Data/Unemployment Data/Unemployment_2020.csv", 
+                              stringsAsFactors=FALSE)
+Density_1970to2020 <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Data/State Data/Population Density /density_1910_2020.csv", 
+                              stringsAsFactors = FALSE, skip=3)
+Density2 <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Data/State Data/Population Density /density_1910_2020_2.csv", 
+                     stringsAsFactors = FALSE, skip=3)
 
 
-# Create new data set with election year data 
+################
+# Unemployment #
+################
+
 years <- seq(1976, 2020, by=4)
-Unemp_Data <- State_Unemployment %>%
+Unemp_Data <- Unemployment %>%
   filter(grepl("Oct", Month)) %>%
   mutate(year = as.integer(str_sub(Month,-4,-1))) %>%
   filter(year %in% years) %>%
@@ -91,7 +103,6 @@ Unemp_Data <- State_Unemployment %>%
   select(-contains("Month")) %>%
   pivot_longer(!year, names_to="state", values_to = "Unemp_Rate") 
 
-# add new column for rate change using every year but 1976
 Unemp_Data_Other <- Unemp_Data
 Unemp_Data <- Unemp_Data %>%
   mutate(Previous=(year-4)) %>%
@@ -101,11 +112,8 @@ Unemp_Data <- Unemp_Data %>%
   mutate(Change = (Unemp_Rate.x - Previous_Unemp)/Previous_Unemp) %>%
   filter(year!=1976)
 
-
-# combine unemployment data with State Data
 New_Data <- inner_join(State_Data, Unemp_Data)
 
-# Set Control method
 Train_Control <- trainControl(method="cv", number=10)
 
 #Initiate Parallel Processing
@@ -114,7 +122,7 @@ registerDoParallel(cl)
 
 #Create the regression model for 2016 prediction; notice that juneapp does not correlate, so this will provide
 #a good excuse for using polling for a prior and removing this variable from our state-based model later
-State_Model <- train(incvote ~ q2gdp + juneapp + inc1 + Change,
+New_State_Model <- train(incvote ~ q2gdp + juneapp + inc1 + Change,
                              data = New_Data,
                              trControl = Train_Control,
                              #tuneGrid = Tune_Grid, for glmnet
@@ -123,9 +131,87 @@ State_Model <- train(incvote ~ q2gdp + juneapp + inc1 + Change,
 stopCluster(cl)
 registerDoSEQ()
 
+###########
+# Density #
+###########
 
-# Check model
-summary(State_Model)
+#remove commas from characture and convert to numeric
+Density2$X1950 = as.numeric(gsub("," ,"", Density2$X1950))
+Density2$X1960 = as.numeric(gsub("," ,"", Density2$X1960))
+Density2$X1970 = as.numeric(gsub("," ,"", Density2$X1970)) 
+Density2$X1980 = as.numeric(gsub("," ,"", Density2$X1980)) 
+Density2$X1990 = as.numeric(gsub("," ,"", Density2$X1990)) 
+Density2$X2000 = as.numeric(gsub("," ,"", Density2$X2000)) 
+Density2$X2010 = as.numeric(gsub("," ,"", Density2$X2010)) 
+Density2$X2020 = as.numeric(gsub("," ,"", Density2$X2020)) 
+
+
+# create regression to Interpolate years missing from censuse data
+Xvalues <- c(1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020)
+ElectionYears <- c(seq(1976, 2020, by=4))
+NewYears <- unique(data.frame("NewYears"=sort(c(Xvalues, ElectionYears))))
+
+
+# loop through this for interpolation for each state
+for (i in 1:52){
+  DenState       <- as.numeric(Density2[i, 2:9])
+  df             <- data.frame(cbind(Xvalues, DenState, row.names = NULL)) 
+  df             <- left_join(NewYears, df, by = c("NewYears"="Xvalues"))
+
+  Train_Control  <- trainControl(method="cv", number=2)
+  linear.model   <- train(DenState ~ NewYears, data =  df %>% na.omit, 
+                      method = 'glm', trControl = Train_Control)
+  M              <- is.na(df$DenState)
+  df$DenState[M] <- predict(linear.model, newdata = select(df, NewYears, DenState) %>% filter(M))
+  
+  if (i==1){
+    StateVariable = rep(Density2[1,1], 17)
+    NewDensity = cbind(StateVariable, df)
+  }else{
+    StateVariable = rep(Density2[i,1], 17)
+    df = cbind(StateVariable, df)
+    NewDensity = rbind(NewDensity, df)
+    
+  }
+}
+
+# Clean up new data, only keep election year data, remove PR, 
+# add in state abbreviations
+NewDensity3 = NewDensity %>%
+  filter(NewYears %in% ElectionYears) %>%
+  filter(NewYears != 1976) %>%
+  filter(StateVariable != "Puerto Rico") %>%
+  mutate(state=state2abbr(NewDensity2$StateVariable)) %>%
+  mutate(year = NewYears) %>%
+  select(year, state, DenState) 
+
+
+
+# Add new variable to dataset
+New_Data<- inner_join(New_Data, NewDensity3)
+
+# run model again with new variable
+Train_Control <- trainControl(method="cv", number=10)
+
+#Initiate Parallel Processing
+cl <- makeCluster(detectCores()*0.5)
+registerDoParallel(cl)
+
+#Create the regression model for 2016 prediction; notice that juneapp does not correlate, so this will provide
+#a good excuse for using polling for a prior and removing this variable from our state-based model later
+New_State_Model_1 <- train(incvote ~ q2gdp  + inc1 + Change + DenState,
+                         data = New_Data,
+                         trControl = Train_Control,
+                         #tuneGrid = Tune_Grid, for glmnet
+                         method="glm")
+#End cluster and resume sequential processing
+stopCluster(cl)
+registerDoSEQ()
+
+
+
+
+
 
 
 
