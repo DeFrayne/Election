@@ -87,7 +87,7 @@ Other_Data <- read_excel("/Users/lizzy/Desktop/Project/Election-master/Data/WIID
 Unemployment <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Data/State Data/Unemployment Data/Unemployment.csv", stringsAsFactors=FALSE)
 Unemployment_2020 <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Data/State Data/Unemployment Data/Unemployment_2020.csv", stringsAsFactors=FALSE)
 Density <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Data/State Data/Population Density /density_1910_2020_2.csv", stringsAsFactors = FALSE, skip=3)
-
+StateIncome <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Data/State Data/Median Income Data/Median Income.csv", stringsAsFactors = FALSE, header=TRUE, skip=4)
 
 
 ###############
@@ -273,8 +273,8 @@ Train_Control <- trainControl(method="cv", number=10)
 cl <- makeCluster(detectCores()*0.5)
 registerDoParallel(cl)
 
-#Create the regression model for 2016 prediction; notice that juneapp does not correlate, so this will provide
-#a good excuse for using polling for a prior and removing this variable from our state-based model later
+#Create the regression model including Density
+# Note that density is not significant
 State_Model_Dens <- train(incvote ~ q2gdp  + inc1 + Change + DenState,
                          data = State_Data_PlusDens,
                          trControl = Train_Control,
@@ -289,7 +289,65 @@ registerDoSEQ()
 
 
 
+#################
+# Median Income #
+#################
 
+# Need to find source for 2020 data
+
+#Format data to add to previous data set
+StateIncome$State[9] = "Distric of Columbia"
+
+#remove commas from characture and convert to numeric
+StateIncome$X1984 = as.numeric(gsub("," ,"", StateIncome$X1984))
+StateIncome$X1988 = as.numeric(gsub("," ,"", StateIncome$X1988))
+StateIncome$X1992 = as.numeric(gsub("," ,"", StateIncome$X1992)) 
+StateIncome$X1996 = as.numeric(gsub("," ,"", StateIncome$X1996)) 
+StateIncome$X2000 = as.numeric(gsub("," ,"", StateIncome$X2000)) 
+StateIncome$X2004 = as.numeric(gsub("," ,"", StateIncome$X2004)) 
+StateIncome$X2008 = as.numeric(gsub("," ,"", StateIncome$X2008)) 
+StateIncome$X2012 = as.numeric(gsub("," ,"", StateIncome$X2012)) 
+StateIncome$X2016 = as.numeric(gsub("," ,"", StateIncome$X2016)) 
+
+MedianIncome <- data.frame("state" = rep(state2abbr(StateIncome$State), 9),
+                           "year" = c(rep(1984, 51), rep(1988, 51), rep(1992, 51), 
+                                      rep(1996, 51), rep(2000, 51), rep(2004, 51),
+                                      rep(2008, 51), rep(2012, 51),
+                                      rep(2016, 51)),
+                             "MedIncome" = c(StateIncome$X1984, StateIncome$X1988,
+                                             StateIncome$X1992, StateIncome$X1996, 
+                                             StateIncome$X2000, StateIncome$X2004, 
+                                             StateIncome$X2008, StateIncome$X2012,
+                                             StateIncome$X2016), 
+                           stringsAsFactors = FALSE)
+
+        
+                          
+# Combine new variable with state data
+State_Data_PlusMedIncome<- inner_join(State_Data_PlusDens, MedianIncome)
+
+
+# run model again with new variable
+Train_Control <- trainControl(method="cv", number=10)
+
+#Initiate Parallel Processing
+cl <- makeCluster(detectCores()*0.5)
+registerDoParallel(cl)
+
+# Create the regression model, note that MedIncome is significant
+# in model without density, but g2gdp is no longer significant 
+# Lower AIC than model including density
+State_Model_MedIncome <- train(incvote ~ q2gdp  + inc1 + Change  + MedIncome,
+                         data = State_Data_PlusMedIncome,
+                         trControl = Train_Control,
+                         #tuneGrid = Tune_Grid, for glmnet
+                         method="glm")
+# info on new model
+summary(State_Model_MedIncome)
+
+#End cluster and resume sequential processing
+stopCluster(cl)
+registerDoSEQ()
 
 
 
@@ -365,9 +423,32 @@ registerDoSEQ()
 ################################
 # mean/median household income #
 ################################
+# Format Data by isolating election years and mean.median measure
+ElectionYears <- c(seq(1976, 2020, by=4))
+Income = NationalMeanMedian %>%
+  select(Year, mean.median) %>%
+  filter(Year %in% ElectionYears)
 
+# add to original data set
+National_Data_PlusIncome<- inner_join(Time_For_Change_Data, Income, by=c("year"="Year"))
 
+#Initiate Parallel Processing
+cl <- makeCluster(detectCores()*0.5)
+registerDoParallel(cl)
 
+#Create the regression model with Income measure 
+National_Model_PlusIncome <- train(incvote ~ q2gdp + juneapp + inc1 + mean.median,
+                               data = National_Data_PlusIncome,
+                               trControl = Train_Control,
+                               #tuneGrid = Tune_Grid, for glmnet
+                               method="glm")
+
+#Info on model with mean.meadian measure
+summary(National_Model_PlusIncome)
+
+#End cluster and resume sequential processing
+stopCluster(cl)
+registerDoSEQ()
 
 
 ```
