@@ -1,53 +1,52 @@
-State,"October 2020(P)
-rate",Rank
-Nebraska,3,1
-Vermont,3.2,2
-Iowa,3.6,3
-South Dakota,3.6,3
-Utah,4.1,5
-New Hampshire,4.2,6
-South Carolina,4.2,6
-Georgia,4.5,8
-Minnesota,4.6,9
-Missouri,4.6,9
-North Dakota,4.8,11
-Montana,4.9,12
-Indiana,5,13
-Kansas,5.3,14
-Virginia,5.3,14
-Maine,5.4,16
-Idaho,5.5,17
-Michigan,5.5,17
-Wyoming,5.5,17
-Delaware,5.6,20
-Ohio,5.6,20
-Wisconsin,5.7,22
-Alabama,5.8,23
-Alaska,5.9,24
-Washington,6,25
-Connecticut,6.1,26
-Oklahoma,6.1,26
-Arkansas,6.2,28
-North Carolina,6.3,29
-Colorado,6.4,30
-West Virginia,6.4,30
-Florida,6.5,32
-Illinois,6.8,33
-Oregon,6.9,34
-Texas,6.9,34
-Rhode Island,7,36
-Pennsylvania,7.3,37
-Kentucky,7.4,38
-Massachusetts,7.4,38
-Mississippi,7.4,38
-Tennessee,7.4,38
-Maryland,7.8,42
-Arizona,8,43
-New Mexico,8.1,44
-District of Columbia,8.2,45
-New Jersey,8.2,45
-California,9.3,47
-Louisiana,9.4,48
-New York,9.6,49
-Nevada,12,50
-Hawaii,14.3,51
+State,October 2020
+NE,3
+VT,3.2
+IA,3.6
+SD,3.6
+UT,4.1
+NH,4.2
+SC,4.2
+GA,4.5
+MN,4.6
+MO,4.6
+ND,4.8
+MT,4.9
+IN,5
+KS,5.3
+VA,5.3
+ME,5.4
+ID,5.5
+MI,5.5
+WY,5.5
+DE,5.6
+OH,5.6
+WI,5.7
+AL,5.8
+AK,5.9
+WA,6
+CT,6.1
+OK,6.1
+AR,6.2
+NC,6.3
+CO,6.4
+WV,6.4
+FL,6.5
+IL,6.8
+OR,6.9
+TX,6.9
+RI,7
+PA,7.3
+KY,7.4
+MA,7.4
+MS,7.4
+TN,7.4
+MD,7.8
+AZ,8
+NM,8.1
+DC,8.2
+NJ,8.2
+CA,9.3
+LA,9.4
+NY,9.6
+NV,12
+HI,14.3

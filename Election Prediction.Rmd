@@ -43,6 +43,10 @@ if (!require('bayesplot')){
   install.packages('bayesplot')
   require('bayesplot')
 }
+if (!require('usdata')){
+  install.packages('usdata')
+  require('usdata')
+}
 
 ```
 
@@ -77,24 +81,71 @@ Other_Data <- read_excel("/Users/lizzy/Desktop/Project/Election-master/Data/WIID
 #Other_Data <- read_excel("WIID_06MAY2020.xlsx")
 
 
-##########################
-# Possible new Variables #
-##########################
-Unemployment <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Data/State Data/Unemployment Data/Unemployment.csv", 
-                              stringsAsFactors=FALSE)
-Unemployment_2020 <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Data/State Data/Unemployment Data/Unemployment_2020.csv", 
-                              stringsAsFactors=FALSE)
-Density_1970to2020 <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Data/State Data/Population Density /density_1910_2020.csv", 
-                              stringsAsFactors = FALSE, skip=3)
-Density2 <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Data/State Data/Population Density /density_1910_2020_2.csv", 
-                     stringsAsFactors = FALSE, skip=3)
+##########################################
+# Possible new Variables for State Model #
+##########################################
+Unemployment <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Data/State Data/Unemployment Data/Unemployment.csv", stringsAsFactors=FALSE)
+Unemployment_2020 <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Data/State Data/Unemployment Data/Unemployment_2020.csv", stringsAsFactors=FALSE)
+Density <- read.csv("/Users/lizzy/Desktop/Project/Election-master/Data/State Data/Population Density /density_1910_2020_2.csv", stringsAsFactors = FALSE, skip=3)
+
+
+
+###############
+# STATE MODEL #
+###############
+#original Time for Change model 
+
+#format data
+#setwd("D:/Git/Election/Data")
+State_Data <- read.csv("State_Data.csv", stringsAsFactors = FALSE)
+Time_For_Change_Data <- read.csv("Time_For_Change_Data.csv", stringsAsFactors=FALSE)
+
+
+#Add in which party is incumbent to calculate voter shares for the incumbent candidate
+year <- seq(1976, 2020, by=4)
+incumbent_party <- c("R", "D", "R", "R", "R", "D", "D", "R", "R", "D", "D", "R")
+incumbent_data <- data.frame(year, incumbent_party)
+
+#Merge national statistics and incumbent party in to State_Data
+State_Data <- State_Data %>%
+  left_join(Time_For_Change_Data %>% select(q2gdp, juneapp, inc1, year),
+            by="year")
+
+State_Data <- State_Data %>%
+  left_join(incumbent_data, by="year")
+
+
+#Recalculate voting proportion based on incumbency rather than party
+State_Data <- State_Data %>%
+  mutate(incvote = ifelse(incumbent_party == "D",
+                          dem/(dem+rep),
+                          rep/(dem+rep)))
+
+
+#Create the regression model (Note that juneapp is no longer sig at state level)
+Train_Control <- trainControl(method="cv", number=10)
+State_Model <- train(incvote ~ q2gdp + juneapp + inc1,
+                             data = State_Data,
+                             trControl = Train_Control,
+                             #tuneGrid = Tune_Grid, for glmnet
+                             method="glm")
+#info about original model
+summary(New_State_Model)
+
+
+
+
 
 
 ################
 # Unemployment #
 ################
 
+# Formatting data for processing 
+# election years
 years <- seq(1976, 2020, by=4)
+
+# Remove all data except unemployment from october of election year
 Unemp_Data <- Unemployment %>%
   filter(grepl("Oct", Month)) %>%
   mutate(year = as.integer(str_sub(Month,-4,-1))) %>%
@@ -103,6 +154,13 @@ Unemp_Data <- Unemployment %>%
   select(-contains("Month")) %>%
   pivot_longer(!year, names_to="state", values_to = "Unemp_Rate") 
 
+NewUnemp2020 <- data.frame("year"= rep(2020, 51), "state" = Unemployment_2020$State, "Unemp_Rate" =Unemployment_2020$October.2020 )
+
+Unemp_Data <- rbind(Unemp_Data, NewUnemp2020)
+  
+
+# Create new column to calculate change in unemployment since
+# previous election year
 Unemp_Data_Other <- Unemp_Data
 Unemp_Data <- Unemp_Data %>%
   mutate(Previous=(year-4)) %>%
@@ -112,21 +170,31 @@ Unemp_Data <- Unemp_Data %>%
   mutate(Change = (Unemp_Rate.x - Previous_Unemp)/Previous_Unemp) %>%
   filter(year!=1976)
 
-New_Data <- inner_join(State_Data, Unemp_Data)
+#Isolate 2020 data to check model accuracty later
+UnempChange2020 = Unemp_Data %>%
+  filter(year == 2020)
 
+# Combine new Unemployment data with original data
+State_Data_PlusUnemp <- inner_join(State_Data, Unemp_Data)
+
+
+# Run model
 Train_Control <- trainControl(method="cv", number=10)
 
 #Initiate Parallel Processing
 cl <- makeCluster(detectCores()*0.5)
 registerDoParallel(cl)
 
-#Create the regression model for 2016 prediction; notice that juneapp does not correlate, so this will provide
-#a good excuse for using polling for a prior and removing this variable from our state-based model later
-New_State_Model <- train(incvote ~ q2gdp + juneapp + inc1 + Change,
-                             data = New_Data,
+#Create the regression model with change in Unemployment
+State_Model_UnempChange <- train(incvote ~ q2gdp + juneapp + inc1 + Change,
+                             data = State_Data_PlusUnemp,
                              trControl = Train_Control,
                              #tuneGrid = Tune_Grid, for glmnet
                              method="glm")
+# Info about model with Unemployment Rate Change
+# Unemp Change is significant! 
+summary(State_Model_UnempChange)
+
 #End cluster and resume sequential processing
 stopCluster(cl)
 registerDoSEQ()
@@ -136,14 +204,14 @@ registerDoSEQ()
 ###########
 
 #remove commas from characture and convert to numeric
-Density2$X1950 = as.numeric(gsub("," ,"", Density2$X1950))
-Density2$X1960 = as.numeric(gsub("," ,"", Density2$X1960))
-Density2$X1970 = as.numeric(gsub("," ,"", Density2$X1970)) 
-Density2$X1980 = as.numeric(gsub("," ,"", Density2$X1980)) 
-Density2$X1990 = as.numeric(gsub("," ,"", Density2$X1990)) 
-Density2$X2000 = as.numeric(gsub("," ,"", Density2$X2000)) 
-Density2$X2010 = as.numeric(gsub("," ,"", Density2$X2010)) 
-Density2$X2020 = as.numeric(gsub("," ,"", Density2$X2020)) 
+Density$X1950 = as.numeric(gsub("," ,"", Density$X1950))
+Density$X1960 = as.numeric(gsub("," ,"", Density$X1960))
+Density$X1970 = as.numeric(gsub("," ,"", Density$X1970)) 
+Density$X1980 = as.numeric(gsub("," ,"", Density$X1980)) 
+Density$X1990 = as.numeric(gsub("," ,"", Density$X1990)) 
+Density$X2000 = as.numeric(gsub("," ,"", Density$X2000)) 
+Density$X2010 = as.numeric(gsub("," ,"", Density$X2010)) 
+Density$X2020 = as.numeric(gsub("," ,"", Density$X2020)) 
 
 
 # create regression to Interpolate years missing from censuse data
@@ -151,10 +219,13 @@ Xvalues <- c(1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020)
 ElectionYears <- c(seq(1976, 2020, by=4))
 NewYears <- unique(data.frame("NewYears"=sort(c(Xvalues, ElectionYears))))
 
+#Initiate Parallel Processing
+cl <- makeCluster(detectCores()*0.5)
+registerDoParallel(cl)
 
 # loop through this for interpolation for each state
 for (i in 1:52){
-  DenState       <- as.numeric(Density2[i, 2:9])
+  DenState       <- as.numeric(Density[i, 2:9])
   df             <- data.frame(cbind(Xvalues, DenState, row.names = NULL)) 
   df             <- left_join(NewYears, df, by = c("NewYears"="Xvalues"))
 
@@ -165,30 +236,35 @@ for (i in 1:52){
   df$DenState[M] <- predict(linear.model, newdata = select(df, NewYears, DenState) %>% filter(M))
   
   if (i==1){
-    StateVariable = rep(Density2[1,1], 17)
+    StateVariable = rep(Density[1,1], 17)
     NewDensity = cbind(StateVariable, df)
   }else{
-    StateVariable = rep(Density2[i,1], 17)
+    StateVariable = rep(Density[i,1], 17)
     df = cbind(StateVariable, df)
     NewDensity = rbind(NewDensity, df)
     
   }
 }
+#End cluster and resume sequential processing
+stopCluster(cl)
+registerDoSEQ()
 
 # Clean up new data, only keep election year data, remove PR, 
 # add in state abbreviations
-NewDensity3 = NewDensity %>%
+NewDensity1 = NewDensity %>%
   filter(NewYears %in% ElectionYears) %>%
   filter(NewYears != 1976) %>%
   filter(StateVariable != "Puerto Rico") %>%
-  mutate(state=state2abbr(NewDensity2$StateVariable)) %>%
+  mutate(state=state2abbr(StateVariable)) %>%
   mutate(year = NewYears) %>%
   select(year, state, DenState) 
 
-
+#Isolate 2020 data to check model accuracty later
+NewDensity2020 = NewDensity1 %>%
+  filter(year == 2020)
 
 # Add new variable to dataset
-New_Data<- inner_join(New_Data, NewDensity3)
+State_Data_PlusDens<- inner_join(New_Data, NewDensity1)
 
 # run model again with new variable
 Train_Control <- trainControl(method="cv", number=10)
@@ -199,11 +275,14 @@ registerDoParallel(cl)
 
 #Create the regression model for 2016 prediction; notice that juneapp does not correlate, so this will provide
 #a good excuse for using polling for a prior and removing this variable from our state-based model later
-New_State_Model_1 <- train(incvote ~ q2gdp  + inc1 + Change + DenState,
-                         data = New_Data,
+State_Model_Dens <- train(incvote ~ q2gdp  + inc1 + Change + DenState,
+                         data = State_Data_PlusDens,
                          trControl = Train_Control,
                          #tuneGrid = Tune_Grid, for glmnet
                          method="glm")
+# info on new model
+summary(State_Model_Dens)
+
 #End cluster and resume sequential processing
 stopCluster(cl)
 registerDoSEQ()
@@ -214,10 +293,92 @@ registerDoSEQ()
 
 
 
+##################
+# NATIONAL MODEL #
+##################
+
+#Set Working Directory
+#setwd("D:/Git/Election/Data")
+
+#Read in Time For Change Data
+Time_For_Change_Data <- read.csv("Time_For_Change_Data.csv", stringsAsFactors=FALSE)
+
+#############################################
+# Possible new Variables for National Model #
+#############################################
+NationalMeanMedian <- read.csv(url("https://raw.githubusercontent.com/DeFrayne/SQL-Summer-Bridge/master/incomeInequality.csv"))
+
+
+# Original Time for Change Model (no odded variables)
+# Get data in correct format for processing 
+#Remove 2016 Data
+Time_For_Change_Data_No_2016 <- Time_For_Change_Data %>%
+  filter(year != "2016") %>%
+  select(-label, -filter_.)
+
+#Only 2016 data
+Time_For_Change_Data_Only_2016 <- Time_For_Change_Data %>%
+  filter(year == "2016") %>%
+  select(-label, -filter_.)
+
+
+#Cross-validation
+#Train_Control <- trainControl(method="LOOCV")
+Train_Control <- trainControl(method="cv", number=2)
+Tune_Grid <- expand.grid('alpha'=c(.5, 1),'lambda' = seq(0.0001, .01, length.out = 10))
+
+#Initiate Parallel Processing
+cl <- makeCluster(detectCores()*0.5)
+registerDoParallel(cl)
+
+
+#Create the regression model for 2016 prediction
+Time_For_Change_Model_2016 <- train(incvote ~ q2gdp + juneapp + inc1,
+                               data = Time_For_Change_Data_No_2016,
+                               trControl = Train_Control,
+                               #tuneGrid = Tune_Grid, for glmnet
+                               method="glm")
+
+
+#Create the regression model for 2020 prediction (2020 data not included yet)
+Time_For_Change_Model_2020 <- train(incvote ~ q2gdp + juneapp + inc1,
+                               data = Time_For_Change_Data,
+                               trControl = Train_Control,
+                               #tuneGrid = Tune_Grid, for glmnet
+                               method="glm")
+
+#Check only 1976 to 2016 (leave this here - notice that none of the variables are significant when we check 1976
+#to 2016); I think that's a good talking point re: shifting demographics
+TFC_Start_1976 <- Time_For_Change_Data %>%
+  filter(year >= "1976")
+TFC_Start_1976_Model <- train(incvote ~ q2gdp + juneapp + inc1,
+                               data = TFC_Start_1976,
+                               trControl = Train_Control,
+                               #tuneGrid = Tune_Grid, for glmnet
+                               method="glm")
+
+#End cluster and resume sequential processing
+stopCluster(cl)
+registerDoSEQ()
+
+
+################################
+# mean/median household income #
+################################
+
+
+
+
 
 ```
 
 ```{r}
+##################
+# NATIONAL MODEL #
+##################
+
+
+
 #Test the files to ensure we receive the same results of Abramowitz
 
 #Set Working Directory
