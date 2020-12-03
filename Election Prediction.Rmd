@@ -83,7 +83,7 @@ write.csv(Polls_2020, "Polls_2020.csv", row.names=FALSE)
 ####################
 # State Model Data #
 ####################
-StateDataFull <- read.csv(url("https://raw.githubusercontent.com/DeFrayne/Election/master/Data/State%20Data/StateDataMaster.csv"))
+StateDataFull <- read.csv(url("https://raw.githubusercontent.com/DeFrayne/Election/master/Data/StateDataMaster.csv"))
 
 ###############
 # STATE MODEL #
@@ -117,7 +117,7 @@ summary(State_Model)
 #######################
 # NATIONAL MODEL Data #
 #######################
-NationalData <- read.csv(url("https://raw.githubusercontent.com/DeFrayne/Election/master/Data/National%20Data/NationalDataMaster.csv"))
+NationalData <- read.csv(url("https://raw.githubusercontent.com/DeFrayne/Election/master/Data/NationalDataMaster.csv"))
 
 
 ##################
